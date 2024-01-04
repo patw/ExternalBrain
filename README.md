@@ -8,6 +8,10 @@ External Brain is a tool for asserting facts or writing down your thoughts, stor
 * Facts get grouped into fact chunks and vectorized by a text embedder
 * Questions to the External Brain will retrieve facts before answering, grouding the response with your own facts!
 
+![ExternalBrain UI Screenshot](images/question.png)
+![ExternalBrain Facts](images/facts.png)
+![ExternalBrain Search](images/search.png)
+
 ## Local Installation
 
 ```
