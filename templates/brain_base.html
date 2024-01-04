@@ -1,0 +1,49 @@
+{% extends 'bootstrap/base.html' %}
+
+{% block title %}
+External Brain
+{% endblock %}
+
+{% block head %}
+{{super()}}
+    <link rel="icon" type="image/png" href="static/favicon.ico">
+{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    body {
+        background: #f9f9f9;
+    }
+</style>
+{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <a class="navbar-brand" href="/">
+        🧠 External Brain
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+            <li class="nav-item">
+                <a class="nav-link" href="/paste">⭐ Paste New Data</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/facts">⚙️ Fact Management</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/search">🔎 Search Chunks</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/chunks">🧩 Generate Chunks</a>
+            </li>
+        </ul>
+    </div>
+    <div class="ml-auto">
+        <a class="nav-link" href="/logout">👋 Logout</a>
+    </div>
+</nav>
+{% endblock %}

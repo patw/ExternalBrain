@@ -1,0 +1,3 @@
+{
+    "embedding_endpoint": "http://localhost:3005/vectorize"
+}

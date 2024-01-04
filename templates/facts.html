@@ -1,0 +1,39 @@
+{% extends 'brain_base.html' %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-10 col-lg-10 mx-lg-auto mx-md-auto">
+
+            <h1 class="pt-5 pb-2">Fact List - {{ facts_count }} facts</h1>
+
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Date</th>
+                        <th>Contex</th>
+                        <th>Fact</th>
+                        <th>Delete</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for fact in facts %}
+                    <tr>
+                        <td>{{ fact.user }}</td>
+                        <td>{{ fact.date }}</td>
+                        <td>{{ fact.context }}</td>
+                        <td>{{ fact.fact }}</td>
+                        <td><a href="delete/{{ fact._id}}">X</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}
