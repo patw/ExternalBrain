@@ -11,3 +11,6 @@ python-dotenv
 
 # REST Stuff
 requests
+
+# Mongo stuff
+pymongo
