@@ -10,10 +10,7 @@ __pycache__/
 *.gguf
 
 # Main config files
-model.json
-
-# Embeddder json
-embedder.json
+*.json
 
 # Distribution / packaging
 .Python
