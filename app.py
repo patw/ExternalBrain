@@ -164,7 +164,11 @@ def chat(prompt, system_message, augmented=True, temperature=DEFAULT_TEMPERATURE
         for chunk in chunks:
             fact_chunks.append(chunk["fact_chunk"])
             chunk_string += chunk["fact_chunk"]
-        llm_prompt = F"Facts:\n{chunk_string}\nAnswer this question using only the relevant facts above: {prompt}"
+        # The most important guardrail for any LLM app:  Don't answer the question if there's no chunks!
+        if chunk_string != "":
+            llm_prompt = F"Facts:\n{chunk_string}\nAnswer this question using only the relevant facts above: {prompt}"
+        else:
+            return {"chunks": [], "completion": "I couldn't find any stored facts to answer that question. Try another question."}
     # If we're not, just query the model directly, without augmentation
     else:
         llm_prompt = prompt
