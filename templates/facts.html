@@ -6,7 +6,9 @@
     <div class="row">
         <div class="col-md-10 col-lg-10 mx-lg-auto mx-md-auto">
 
-            <h1 class="pt-5 pb-2">Fact List - {{ facts_count }} facts</h1>
+            <h3 class="pt-5 pb-2">Fact List - {{ facts_count }} facts</h1>
+
+            {{ wtf.quick_form(form) }}
 
             <table class="table table-striped">
                 <thead>
@@ -15,6 +17,7 @@
                         <th>Date</th>
                         <th>Contex</th>
                         <th>Fact</th>
+                        <th>Edit</th>
                         <th>Delete</th>
                     </tr>
                 </thead>
@@ -26,7 +29,8 @@
                         <td>{{ fact.date }}</td>
                         <td>{{ fact.context }}</td>
                         <td>{{ fact.fact }}</td>
-                        <td><a href="delete/{{ fact._id}}">X</a></td>
+                        <td><a href="edit/{{ fact._id}}">🖊️</a></td>
+                        <td><a href="delete/{{ fact._id}}">🔫</a></td>
                     </tr>
                     {% endfor %}
                 </tbody>

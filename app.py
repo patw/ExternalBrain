@@ -1,12 +1,12 @@
 # Basic flask stuff for building http APIs and rendering html templates
-from flask import Flask, render_template, redirect, url_for, request, session
+from flask import Flask, render_template, redirect, url_for, request, session, jsonify
 
 # Bootstrap integration with flask so we can make pretty pages
 from flask_bootstrap import Bootstrap
 
 # Flask forms integrations which save insane amounts of time
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, PasswordField, SelectField, TextAreaField, IntegerField, FloatField
+from wtforms import StringField, SubmitField, PasswordField, SelectField, TextAreaField, IntegerField, FloatField, DateTimeField
 from wtforms.validators import DataRequired
 
 # Basic python stuff
@@ -31,9 +31,20 @@ app = Flask(__name__)
 # Session key
 app.config['SECRET_KEY'] = os.environ["SECRET_KEY"]
 
+# API Key
+API_KEY = os.environ["API_KEY"]
+
 # User Auth
 users_string = os.environ["USERS"]
 users = json.loads(users_string)
+
+
+# Some handy defaults
+DEFAULT_SYSTEM_MESSAGE = "You are a friendly chatbot. You help the user answer questions, solve problems and make plans.  You think deeply about the question and provide a detailed, accurate response."
+DEFAULT_TEMPERATURE = 0.7
+DEFAULT_SCORE_CUT = 0.9
+DEFAULT_LIMIT = 5
+DEFAULT_CANDIDATES = 100
 
 # Load the llm model config
 with open("model.json", 'r',  encoding='utf-8') as file:
@@ -52,10 +63,14 @@ Bootstrap(app)
 
 # A form for asking your external brain questions
 class QuestionForm(FlaskForm):
-    rag = SelectField('Generation Type', choices=[("augmented", "Augmented (Facts)"), ("freeform", "Freeform")]) 
     question = StringField('Question 💬', validators=[DataRequired()])
     submit = SubmitField('Submit')
-
+    rag = SelectField('Generation Type', choices=[("augmented", "Augmented (Facts)"), ("freeform", "Freeform")])
+    temperature = FloatField('LLM Temperature', default=DEFAULT_TEMPERATURE, validators=[DataRequired()])
+    candidates = IntegerField('Vector Candidates', default=DEFAULT_CANDIDATES, validators=[DataRequired()])
+    limit = IntegerField('Chunks', default=DEFAULT_LIMIT, validators=[DataRequired()])
+    score_cut = FloatField('Score Cut Off', default=DEFAULT_SCORE_CUT, validators=[DataRequired()])
+    
 # A form for testings semantic search of the chunks
 class VectorSearchForm(FlaskForm):
     question = StringField('Question 💬', validators=[DataRequired()])
@@ -70,9 +85,20 @@ class PasteForm(FlaskForm):
     submit = SubmitField('Summarize')
 
 # A form for reviewing and saving the summarized facts
+class FactSearchForm(FlaskForm):
+    query = StringField('Search Facts', validators=[DataRequired()])
+    submit = SubmitField('Search')
+
+# A form to edit the facts
+class FactEditForm(FlaskForm):
+    context = StringField('Context (article name, url, todo, idea)', validators=[DataRequired()])
+    fact = StringField('Fact', validators=[DataRequired()])
+    save = SubmitField('Save')
+
+# A form for reviewing and saving the summarized facts
 class SaveFactsForm(FlaskForm):
-    context = StringField('Context', validators=[DataRequired()])
-    fact_data = TextAreaField('Summarized Facts', validators=[DataRequired()])
+    context = StringField('Context (article name, url, todo, idea)', validators=[DataRequired()])
+    fact_data = TextAreaField('Summarized Facts (one per line)', validators=[DataRequired()])
     submit = SubmitField('Save Facts')
 
 # A form for configuring the chunk regen process
@@ -94,12 +120,7 @@ def embed(text):
     return vector_embedding
 
 # Function to call the configured model to get a completion
-def llm(user_prompt):
-
-    # Chatbot config
-    system_message = "You answer questions for the user"
-    tokens = -1
-    temperature = 0.7
+def llm(user_prompt, system_message, temperature=0.7, tokens=-1):
 
      # Build the prompt
     prompt = model["prompt_format"].replace("{system}", system_message)
@@ -131,6 +152,24 @@ def llm(user_prompt):
     
     # Send the raw completion output content
     return output
+
+# Chat with model with or without augmentation
+def chat(prompt, system_message, augmented=True, temperature=0.7, candidates=100, limit=5, score_cut=0.9):
+    # If we're doing RAG, vector search, assemble chunks and query with them
+    fact_chunks = []
+    chunk_string = ""
+    if augmented:
+        chunks = search_chunks(prompt, candidates, limit, score_cut)
+        for chunk in chunks:
+            fact_chunks.append(chunk["fact_chunk"])
+            chunk_string += chunk["fact_chunk"]
+        llm_prompt = F"Facts:\n{chunk_string}\nAnswer this question using only the facts above: {prompt}"
+    # If we're not, just query the model directly, without augmentation
+    else:
+        llm_prompt = prompt
+
+    completion = llm(llm_prompt, system_message, temperature)
+    return {"chunks": fact_chunks, "completion": completion}
 
 # Store a fact array in mongo
 def store_facts(facts, user, context):
@@ -172,6 +211,7 @@ def search_chunks(prompt, candidates, limit, score_cut):
     # Connect to chunks, run query, return results
     col = db["chunks"]
     chunk_records = col.aggregate(vector_search_agg)
+    # Return this as a list instead of a cursor
     return chunk_records
 
 # Get all facts
@@ -180,10 +220,61 @@ def get_facts(skip,limit):
     fact_records = col.find().skip(skip).limit(limit)
     return fact_records
 
+# Get chunks based on semantic search (FIX THIS!!)
+# Just returns all chunks right now...
+def search_facts(query):
+    
+    # Build the Atlas vector search aggregation
+    search_agg = [
+        {
+            "$search": {
+                "text": {
+                    "path": ["context", "fact"],
+                    "query": query
+                }
+            }
+        },
+        {
+            "$project": {
+                "_id": 1,
+                "user": 1,
+                "date": 1,
+                "context": 1,
+                "fact": 1,
+                "score": {"$meta": "searchScore"}
+            }
+        },
+        {
+            "$limit": 25
+        }
+    ]
+
+    # Connect to chunks, run query, return results
+    col = db["facts"]
+    fact_records = col.aggregate(search_agg)
+    # Return this as a list instead of a cursor
+    return fact_records
+
 # Return the count of facts in the system
 def count_facts():
     col = db["facts"]
     return  col.count_documents({})
+
+# Clean up a list of facts
+def clean_facts(facts):            
+    # Parse and save the facts here!
+    facts = facts.replace("- ", "") # remove bullet points
+    facts = facts.replace("* ", "") # also bullet points
+    facts = facts.replace("\r", "") # No carraige return
+    facts = facts.replace("\t", "") # No tabs
+
+    # Split the facts by line
+    fact_list = facts.split("\n")
+
+    # Remove any empty facts from the list
+    facts_clean = list(filter(None, fact_list))
+
+    return(facts_clean)
 
 # Generate chunk collection using facts, fixed fact method
 def chunk_by_limit(chunk_limit):
@@ -258,16 +349,10 @@ def index():
         q = form_result["question"]
 
         if form_result["rag"] == "augmented":
-            chunk_search = search_chunks(q, 200, 5, 0.9)
-            chunk_string = ""
-            for chunk in chunk_search:
-                chunk_string += chunk["fact_chunk"]
-            aug_prompt = F"Facts:\n{chunk_string}\nAnswer this question using only the facts above: {q}"
-            print(aug_prompt)
-            llm_result = llm(aug_prompt)
+            llm_result = chat(q, DEFAULT_SYSTEM_MESSAGE, True)
         else:
-            llm_result = llm(q) 
-        return render_template('index.html', llm_result=llm_result, form=form)
+            llm_result = chat(q, DEFAULT_SYSTEM_MESSAGE, False)
+        return render_template('index.html', llm_result=llm_result["completion"], form=form)
     
     # Spit out the template
     return render_template('index.html', llm_result="", form=form)
@@ -286,13 +371,7 @@ def pastetext():
         
         if form_result["submit"] == "Save Facts":
             # Parse and save the facts here!
-            llm_result = form_result["fact_data"]
-            llm_result = llm_result.replace("- ", "") # remove bullet points
-            llm_result = llm_result.replace("* ", "")
-            llm_result = llm_result.replace("\r", "") # No carraige return
-            llm_result = llm_result.replace("\t", "") # No tabs
-            dirty_facts = llm_result.split("\n")
-            facts = list(filter(None, dirty_facts))  # Remove empty facts
+            facts = clean_facts(form_result["fact_data"])
             store_facts(facts, session["user"], form_result["context"])
             return redirect(url_for('index'))
         else:
@@ -308,14 +387,43 @@ def pastetext():
     # Spit out the template
     return render_template('pastedata.html', form=form)
 
+# The paste in data, get facts, store facts
+@app.route('/manual', methods=['GET', 'POST'])
+@login_required
+def manual():
+    form = SaveFactsForm()
+
+    if form.is_submitted():
+        # Get the form variables
+        form_result = request.form.to_dict(flat=True)
+        
+        # Parse and save the facts here!
+        facts = clean_facts(form_result["fact_data"])
+        store_facts(facts, session["user"], form_result["context"])
+        return redirect(url_for('index'))
+        
+    return render_template('factreview.html', form=form)
+
 # Regenerate the chunks!
 @app.route('/facts', methods=['GET', 'POST'])
 @login_required
 def facts():
+    form = FactSearchForm()
     fact_count = count_facts()
-    # Spit out the template
-    facts = get_facts(0, 100)
-    return render_template('facts.html', facts=facts, facts_count=fact_count)
+
+    # For paginating the display
+    page = request.args.get('page')
+    if not page:
+        page = 0
+    else:
+        page = int(page)
+
+    if form.is_submitted():
+        form_result = request.form.to_dict(flat=True)
+        facts = search_facts(form_result["query"])
+    else:
+        facts = get_facts((page * 25) , (page * 25) + 25)
+    return render_template('facts.html', form=form, facts=facts, facts_count=fact_count)
 
 # Regenerate the chunks!
 @app.route('/chunks', methods=['GET', 'POST'])
@@ -359,6 +467,31 @@ def search():
 
     return render_template('search.html', chunks=chunks, form=form)
 
+
+# This fact is wrong and will be corrected harshly
+@app.route('/edit/<id>', methods=['GET', 'POST'])
+@login_required
+def fact_edit(id):
+    
+    # Pull up that fact
+    facts_col = db["facts"]
+    fact_record = facts_col.find_one({'_id': ObjectId(id)})
+
+    # Fact edit form
+    form = FactEditForm()
+
+    if form.is_submitted():
+        form_result = request.form.to_dict(flat=True)
+        form_result.pop('csrf_token')
+        form_result.pop('save')
+        facts_col.update_one({'_id': ObjectId(id)}, {'$set': form_result})
+        return redirect(url_for('index'))
+    else:        
+        # Populate the edit form.
+        form.context.data = fact_record["context"]
+        form.fact.data = fact_record["fact"]
+        return render_template('edit.html', form=form)
+
 # This fact is bad, and it should feel bad
 @app.route('/delete/<id>')
 @login_required
@@ -366,6 +499,59 @@ def fact_delete(id):
     facts_col = db["facts"]
     facts_col.delete_one({'_id': ObjectId(id)})
     return redirect(url_for('facts'))
+
+
+# API route for chatting with bot
+@app.route('/api/chat', methods=['GET'])
+def api_query():
+    # Get the API key from the URL and bail out if it's wrong
+    api_key = request.args.get('api_key')
+    if api_key != API_KEY:
+        return jsonify({"error": "Invalid API Key"})
+    
+    # Get the prompt, validate it's something
+    prompt = request.args.get('prompt')
+    if not prompt:
+        return jsonify({"error": "you must provide a prompt"})
+    
+    # Optional system message tunable
+    system_message = request.args.get('system_message')
+    if not system_message:
+        system_message = DEFAULT_SYSTEM_MESSAGE
+    
+    # Augmented or raw model?
+    augmented = request.args.get('augmented')
+    if not augmented:
+        augmented = True
+    else:
+        if augmented == "False" or "false":
+            augmented = False
+        else:
+            augmented = True
+
+    # Spicy or boring?
+    temperature = request.args.get('temperature')
+    if not temperature:
+        temperature = DEFAULT_TEMPERATURE
+
+    # Working hard or hardly working?
+    candidates = request.args.get('candidates')
+    if not candidates:
+        candidates = DEFAULT_CANDIDATES
+
+    # Lots of facts or just a few?
+    limit = request.args.get('limit')
+    if not limit:
+        limit = DEFAULT_LIMIT
+
+    # Highly discerning or sloppy?
+    score_cut = request.args.get('score_cut')
+    if not score_cut:
+        score_cut = DEFAULT_SCORE_CUT
+
+    # Ask for a good result
+    response = chat(prompt, system_message, augmented, float(temperature), int(candidates), int(limit), float(score_cut))
+    return jsonify(response)
 
 # Login/logout routes that rely on the user being stored in session
 @app.route('/login', methods=['GET', 'POST'])
