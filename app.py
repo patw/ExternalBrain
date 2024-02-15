@@ -164,7 +164,7 @@ def chat(prompt, system_message, augmented=True, temperature=DEFAULT_TEMPERATURE
         for chunk in chunks:
             fact_chunks.append(chunk["fact_chunk"])
             chunk_string += chunk["fact_chunk"]
-        llm_prompt = F"Facts:\n{chunk_string}\nAnswer this question using only the facts above: {prompt}"
+        llm_prompt = F"Facts:\n{chunk_string}\nAnswer this question using only the relevant facts above: {prompt}"
     # If we're not, just query the model directly, without augmentation
     else:
         llm_prompt = prompt
