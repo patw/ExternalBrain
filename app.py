@@ -38,13 +38,13 @@ API_KEY = os.environ["API_KEY"]
 users_string = os.environ["USERS"]
 users = json.loads(users_string)
 
-
-# Some handy defaults
+# Some handy defaults that control the app
 DEFAULT_SYSTEM_MESSAGE = "You are a friendly chatbot. You help the user answer questions, solve problems and make plans.  You think deeply about the question and provide a detailed, accurate response."
 DEFAULT_TEMPERATURE = 0.7
-DEFAULT_SCORE_CUT = 0.9
-DEFAULT_LIMIT = 5
+DEFAULT_SCORE_CUT = 0.92
+DEFAULT_LIMIT = 3
 DEFAULT_CANDIDATES = 100
+DEFAULT_FACTS_PER_PAGE = 25
 
 # Load the llm model config
 with open("model.json", 'r',  encoding='utf-8') as file:
@@ -120,7 +120,7 @@ def embed(text):
     return vector_embedding
 
 # Function to call the configured model to get a completion
-def llm(user_prompt, system_message, temperature=0.7, tokens=-1):
+def llm(user_prompt, system_message, temperature=DEFAULT_TEMPERATURE, tokens=-1):
 
      # Build the prompt
     prompt = model["prompt_format"].replace("{system}", system_message)
@@ -131,6 +131,7 @@ def llm(user_prompt, system_message, temperature=0.7, tokens=-1):
         "n_predict": tokens,
         "temperature": temperature,
         "stop": model["stop_tokens"],
+        "seed": -1,
         "tokens_cached": 0
     }
 
@@ -154,7 +155,7 @@ def llm(user_prompt, system_message, temperature=0.7, tokens=-1):
     return output
 
 # Chat with model with or without augmentation
-def chat(prompt, system_message, augmented=True, temperature=0.7, candidates=100, limit=5, score_cut=0.9):
+def chat(prompt, system_message, augmented=True, temperature=DEFAULT_TEMPERATURE, candidates=DEFAULT_CANDIDATES, limit=DEFAULT_LIMIT, score_cut=DEFAULT_SCORE_CUT):
     # If we're doing RAG, vector search, assemble chunks and query with them
     fact_chunks = []
     chunk_string = ""
@@ -245,7 +246,7 @@ def search_facts(query):
             }
         },
         {
-            "$limit": 25
+            "$limit": DEFAULT_FACTS_PER_PAGE
         }
     ]
 
@@ -422,7 +423,9 @@ def facts():
         form_result = request.form.to_dict(flat=True)
         facts = search_facts(form_result["query"])
     else:
-        facts = get_facts((page * 25) , (page * 25) + 25)
+        skip = page * DEFAULT_FACTS_PER_PAGE
+        limit = DEFAULT_FACTS_PER_PAGE
+        facts = get_facts(skip, limit)
     return render_template('facts.html', form=form, facts=facts, facts_count=fact_count)
 
 # Regenerate the chunks!
@@ -430,7 +433,7 @@ def facts():
 @login_required
 def regenchunks():
     # Question form for the external brain
-    form = ChunksForm(fact_limit=5)
+    form = ChunksForm(fact_limit=DEFAULT_LIMIT)
     fact_count = count_facts()
 
     # Regen the chunks based on settings
@@ -455,7 +458,7 @@ def regenchunks():
 @login_required
 def search():
     chunks = []
-    form = VectorSearchForm(k=100, score_cut=0.9)
+    form = VectorSearchForm(k=DEFAULT_CANDIDATES, score_cut=DEFAULT_SCORE_CUT)
     # Regen the chunks based on settings
     if form.is_submitted():
         form_result = request.form.to_dict(flat=True)
