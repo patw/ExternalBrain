@@ -1,0 +1,37 @@
+{% extends 'brain_base.html' %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-10 col-lg-10 mx-lg-auto mx-md-auto">
+            <h3>🧠 External Brain</h3>
+            <table class="table table-sm">
+                <thead>
+                    <th>Response</th>
+                    <th class="col-sm-3">Identity</th>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>{{ llm_result }}</td>
+                        <td><b>{{ bot_name }}</b><br/><img src="/static/bot.png" width=100 alt="Bot"><br/> Skills: {{ bot_skills}} </td>
+                    </tr>
+                </tbody>
+            </table>
+            {{ wtf.quick_form(form) }}
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript code to set focus -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get the input element by its id
+        var myInput = document.getElementById('question');
+
+        // Set focus on the input element
+        myInput.focus();
+    });
+</script>
+
+{% endblock %}

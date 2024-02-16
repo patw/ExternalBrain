@@ -1,0 +1,19 @@
+{% extends 'bootstrap/base.html' %}
+
+{% block title %}
+External Brain
+{% endblock %}
+
+{% block head %}
+{{super()}}
+    <link rel="icon" type="image/png" href="static/favicon.ico">
+{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    body {
+        background: #f9f9f9;
+    }
+</style>
+{% endblock %}
