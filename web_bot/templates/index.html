@@ -7,14 +7,13 @@
         <div class="col-md-10 col-lg-10 mx-lg-auto mx-md-auto">
             <h3>🧠 External Brain</h3>
             <table class="table table-sm">
-                <thead>
-                    <th>Response</th>
-                    <th class="col-sm-3">Identity</th>
-                </thead>
                 <tbody>
                     <tr>
+                        <td><b>{{ bot_name }}</b> - Skills: {{ bot_skills}} <img src="/static/bot.png" width=100 alt="Bot"></td>
+                    </tr>
+                    <tr>
                         <td>{{ llm_result }}</td>
-                        <td><b>{{ bot_name }}</b><br/><img src="/static/bot.png" width=100 alt="Bot"><br/> Skills: {{ bot_skills}} </td>
+                        
                     </tr>
                 </tbody>
             </table>
