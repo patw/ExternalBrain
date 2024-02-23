@@ -6,17 +6,19 @@
     <div class="row">
         <div class="col-md-10 col-lg-10 mx-lg-auto mx-md-auto">
             <h3>🧠 External Brain</h3>
-            <table class="table table-sm">
-                <tbody>
-                    <tr>
-                        <td><b>{{ bot_name }}</b> - Skills: {{ bot_skills}} <img src="/static/bot.png" width=100 alt="Bot"></td>
-                    </tr>
-                    <tr>
-                        <td>{{ llm_result }}</td>
-                        
-                    </tr>
-                </tbody>
-            </table>
+            <div class="row">
+                <div class="col">
+                    <b>{{ bot_name }}</b> - Skills: {{ bot_skills }}
+                </div>
+                <div class="col text-right">
+                    <img src="/static/bot.png" width="100" alt="Bot">
+                </div>
+            </div>
+            <div class="row">
+                <div class="col">
+                    {{ llm_result }}
+                </div>
+            </div>
             {{ wtf.quick_form(form) }}
         </div>
     </div>
