@@ -383,7 +383,7 @@ def pastetext():
             paste_data = form_result["paste_data"]
             context =  form_result["context"]
             llm_prompt = F"Provide a detailed fact based summary the following {context}. Output a single level of bullet points and ONLY bullet points not numbers: {paste_data}"
-            llm_result = llm(llm_prompt).lstrip().rstrip()
+            llm_result = llm(llm_prompt, DEFAULT_SYSTEM_MESSAGE).lstrip().rstrip()
 
              # Change the form to the fact review form to save facts
             form = SaveFactsForm(fact_data=llm_result, context=form_result["context"])
