@@ -17,6 +17,9 @@ import requests
 import time
 import datetime
 
+# Some nice formatting for code
+import misaka
+
 # Nice way to load environment variables for deployments
 from dotenv import load_dotenv
 load_dotenv()
@@ -52,7 +55,7 @@ def index():
 
     # Question form for the external brain
     form = QuestionForm()
-    llm_result = ""
+    formatted_result = ""
 
     # If user is prompting send it
     if form.validate_on_submit():
@@ -71,6 +74,9 @@ def index():
         chat_data = api_response.json()
 
         llm_result = chat_data["completion"]
+
+        # Format with Misaka
+        formatted_result = misaka.html(llm_result)
     
     # Spit out the template
-    return render_template('index.html', llm_result=llm_result, form=form, bot_name=BOT_NAME, bot_skills=BOT_SKILLS)
+    return render_template('index.html', llm_result=formatted_result, form=form, bot_name=BOT_NAME, bot_skills=BOT_SKILLS)

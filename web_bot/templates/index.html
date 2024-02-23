@@ -16,7 +16,7 @@
             </div>
             <div class="row">
                 <div class="col">
-                    {{ llm_result }}
+                    {{ llm_result | safe }}
                 </div>
             </div>
             {{ wtf.quick_form(form) }}

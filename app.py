@@ -21,6 +21,9 @@ import datetime
 import pymongo
 from bson import ObjectId
 
+# Some nice formatting for code
+import misaka
+
 # Nice way to load environment variables for deployments
 from dotenv import load_dotenv
 load_dotenv()
@@ -357,7 +360,10 @@ def index():
             llm_result = chat(q, DEFAULT_SYSTEM_MESSAGE, True)
         else:
             llm_result = chat(q, DEFAULT_SYSTEM_MESSAGE, False)
-        return render_template('index.html', llm_result=llm_result["completion"], form=form)
+
+        # Format with Misaka
+        formatted_result = misaka.html(llm_result["completion"])
+        return render_template('index.html', llm_result=formatted_result, form=form)
     
     # Spit out the template
     return render_template('index.html', llm_result="", form=form)
