@@ -23,6 +23,14 @@
                 </thead>
 
                 <tbody>
+                    <tr>
+                        <th><a href="facts?page={{ page - 1}}">⬅️</a></th>
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                        <th><a href="facts?page={{ page + 1}}">➡️</a></th>
+                    </tr>
                     {% for fact in facts %}
                     <tr>
                         <td>{{ fact.user }}</td>
@@ -33,6 +41,14 @@
                         <td><a href="delete/{{ fact._id}}">🔫</a></td>
                     </tr>
                     {% endfor %}
+                    <tr>
+                        <th><a href="facts?page={{ page - 1}}">⬅️</a></th>
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                        <th><a href="facts?page={{ page + 1}}">➡️</a></th>
+                    </tr>
                 </tbody>
             </table>
 

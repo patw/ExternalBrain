@@ -423,6 +423,12 @@ def facts():
     else:
         page = int(page)
 
+    # Make sure the page doesn't go too low or too high
+    if page < 0:
+        page = 0
+    if page >= fact_count / DEFAULT_FACTS_PER_PAGE:
+        page = int(fact_count / DEFAULT_FACTS_PER_PAGE)
+
     if form.is_submitted():
         form_result = request.form.to_dict(flat=True)
         facts = search_facts(form_result["query"])
@@ -430,7 +436,7 @@ def facts():
         skip = page * DEFAULT_FACTS_PER_PAGE
         limit = DEFAULT_FACTS_PER_PAGE
         facts = get_facts(skip, limit)
-    return render_template('facts.html', form=form, facts=facts, facts_count=fact_count)
+    return render_template('facts.html', page=page, form=form, facts=facts, facts_count=fact_count)
 
 # Regenerate the chunks!
 @app.route('/chunks', methods=['GET', 'POST'])
