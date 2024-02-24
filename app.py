@@ -49,6 +49,11 @@ DEFAULT_LIMIT = 3
 DEFAULT_CANDIDATES = 100
 DEFAULT_FACTS_PER_PAGE = 25
 
+## Controls the fact synthesis 
+FACT_SYSTEM_MESSAGE = "You are sumbot, you take articles, blog posts and social media posts and you summarize the content from these into facts.  Each fact should be a single line and you think very carefully about what facts are important to the source material.  You capture enough facts in each article that it could be reproduced later using just the facts you provide.  You are expert level at this task and never miss a fact."
+FACT_PROMPT = "Summarize the following {context} into bullet point facts: {paste_data}"
+FACT_TEMPERATURE = 0.1
+
 # Load the llm model config
 with open("model.json", 'r',  encoding='utf-8') as file:
     model = json.load(file)
@@ -388,8 +393,8 @@ def pastetext():
         else:
             paste_data = form_result["paste_data"]
             context =  form_result["context"]
-            llm_prompt = F"Provide a detailed fact based summary the following {context}. Output a single level of bullet points and ONLY bullet points not numbers: {paste_data}"
-            llm_result = llm(llm_prompt, DEFAULT_SYSTEM_MESSAGE).lstrip().rstrip()
+            llm_prompt = FACT_PROMPT.format(context=context, paste_data=paste_data)
+            llm_result = llm(llm_prompt, FACT_SYSTEM_MESSAGE).lstrip().rstrip()
 
              # Change the form to the fact review form to save facts
             form = SaveFactsForm(fact_data=llm_result, context=form_result["context"])
