@@ -53,7 +53,7 @@ async def on_message(message):
         brain_response = requests.get(BRAIN_URL, params=params).json()
     
         # Send response to discord
-        await message.channel.send(brain_response["completion"])
+        await message.channel.send(brain_response["completion"][:2000])
 
 # Run the main loop
 client.run(DISCORD_TOKEN)
