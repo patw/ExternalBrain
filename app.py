@@ -24,6 +24,11 @@ from bson import ObjectId
 # Some nice formatting for code
 import misaka
 
+# Import OpenAI and Mistral libraries
+from openai import OpenAI
+from mistralai.client import MistralClient
+from mistralai.models.chat_completion import ChatMessage
+
 # Nice way to load environment variables for deployments
 from dotenv import load_dotenv
 load_dotenv()
@@ -34,8 +39,21 @@ app = Flask(__name__)
 # Session key
 app.config['SECRET_KEY'] = os.environ["SECRET_KEY"]
 
-# API Key
+# API Key for app to serve API requests to clients
 API_KEY = os.environ["API_KEY"]
+
+# Determine which LLM/embedding service we will be using
+# this could be llamacpp, mistral or openai
+service_type = os.environ["SERVICE"]
+
+# optionally connect the oai/mistral clients if they're configured
+if "MISTRAL_API_KEY" in os.environ:    
+    mistral_client = MistralClient(api_key=os.environ["MISTRAL_API_KEY"])
+    model_name = os.environ["MODEL_NAME"]
+
+if "OPENAI_API_KEY" in os.environ:
+    oai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    model_name = os.environ["MODEL_NAME"]
 
 # User Auth
 users_string = os.environ["USERS"]
@@ -54,13 +72,17 @@ FACT_SYSTEM_MESSAGE = "You are sumbot, you take articles, blog posts and social 
 FACT_PROMPT = "Summarize the following {context} into bullet point facts: {paste_data}"
 FACT_TEMPERATURE = 0.1
 
-# Load the llm model config
-with open("model.json", 'r',  encoding='utf-8') as file:
-    model = json.load(file)
+# Load up the local model and embedder config if using the "local" service
+# Local in this context means llama.cpp running in server mode with an InstructML format model
+# and InstructorVec service running
+if service_type == "local":
+    # Load the llm model config
+    with open("model.json", 'r',  encoding='utf-8') as file:
+        local_model = json.load(file)
 
-# Load the embedder config
-with open("embedder.json", 'r',  encoding='utf-8') as file:
-    embedder = json.load(file)
+    # Load the embedder config
+    with open("embedder.json", 'r',  encoding='utf-8') as file:
+        local_embedder = json.load(file)
 
 # Connect to mongo using environment variables
 client = pymongo.MongoClient(os.environ["MONGO_CON"])
@@ -121,24 +143,55 @@ class LoginForm(FlaskForm):
     password = PasswordField('Password', validators=[DataRequired()])
     submit = SubmitField('Login')
 
-# Function to call the text embedder
-def embed(text):
-    response = requests.get(embedder["embedding_endpoint"], params={"text":text, "instruction": "Represent this text for retrieval:" }, headers={"accept": "application/json"})
+# Function to call the local text embedder (768d)
+def embed_local(text):
+    response = requests.get(local_embedder["embedding_endpoint"], params={"text":text, "instruction": "Represent this text for retrieval:" }, headers={"accept": "application/json"})
     vector_embedding = response.json()
     return vector_embedding
 
-# Function to call the configured model to get a completion
-def llm(user_prompt, system_message, temperature=DEFAULT_TEMPERATURE, tokens=-1):
+# Call OpenAI's new embedder (1536d)
+def embed_oai(text):
+    text = text.replace("\n", " ")
+    return oai_client.embeddings.create(input = [text], model="text-embedding-3-small").data[0].embedding
+
+# Call mistral's embedder (1024d)
+def embed_mistral(text):
+    text = text.replace("\n", " ")
+    return mistral_client.embeddings(model="mistral-embed", input=[text]).data[0].embedding
+
+# Use whichever embedder makes sense for the configured service
+def embed(text):
+    if service_type == "local":
+        return embed_local(text)
+    if service_type == "openai":
+        return embed_oai(text)
+    if service_type == "mistral":
+        return embed_mistral(text)
+
+# Query mistral models
+def llm_mistral(prompt, system_message, temperature):
+    messages = [ChatMessage(role="system", content=system_message), ChatMessage(role="user", content=prompt)]
+    response = mistral_client.chat(model=model_name, temperature=temperature, messages=messages)
+    return response.choices[0].message.content
+
+# Query OpenAI models
+def llm_oai(prompt, system_message, temperature):
+    messages = [ChatMessage(role="system", content=system_message), ChatMessage(role="user", content=prompt)]
+    response = oai_client.chat.completions.create(model=model_name, temperature=temperature, messages=messages)
+    return response.choices[0].message.content
+
+# Function to call the configured local llama.cpp server model to get a completion
+def llm_local(user_prompt, system_message, temperature):
 
      # Build the prompt
-    prompt = model["prompt_format"].replace("{system}", system_message)
+    prompt = local_model["prompt_format"].replace("{system}", system_message)
     prompt = prompt.replace("{prompt}", user_prompt)
 
     api_data = {
         "prompt": prompt,
-        "n_predict": tokens,
+        "n_predict": -1,
         "temperature": temperature,
-        "stop": model["stop_tokens"],
+        "stop": local_model["stop_tokens"],
         "seed": -1,
         "tokens_cached": 0
     }
@@ -148,7 +201,7 @@ def llm(user_prompt, system_message, temperature=DEFAULT_TEMPERATURE, tokens=-1)
     backoff_factor = 1
     while retries > 0:
         try:
-            response = requests.post(model["llama_endpoint"], headers={"Content-Type": "application/json"}, json=api_data)
+            response = requests.post(local_model["llama_endpoint"], headers={"Content-Type": "application/json"}, json=api_data)
             json_output = response.json()
             output = json_output['content']
             break
@@ -161,6 +214,16 @@ def llm(user_prompt, system_message, temperature=DEFAULT_TEMPERATURE, tokens=-1)
     
     # Send the raw completion output content
     return output
+
+# Determine which LLM we should call depending on what's configured
+def llm(user_prompt, system_message, temperature=DEFAULT_TEMPERATURE):
+    if service_type == "local":
+        return llm_local(user_prompt, system_message, temperature)
+    if service_type == "openai":
+        return llm_oai(user_prompt, system_message, temperature)
+    if service_type == "mistral":
+        return llm_mistral(user_prompt, system_message, temperature)
+
 
 # Chat with model with or without augmentation
 def chat(prompt, system_message, augmented=True, temperature=DEFAULT_TEMPERATURE, candidates=DEFAULT_CANDIDATES, limit=DEFAULT_LIMIT, score_cut=DEFAULT_SCORE_CUT):

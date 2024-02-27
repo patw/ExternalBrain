@@ -17,3 +17,9 @@ pymongo
 
 # Rendering stuff
 misaka
+
+# OpenAI
+OpenAI
+
+# Mistral AI
+mistralai
