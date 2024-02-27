@@ -36,6 +36,24 @@ Copy the sample.env file to .env and edit this file.  This contains all the impo
 * OPENAI_API_KEY - This is your OpenAI Key. You only need this configured if you are using OpenAI. 
 * MISTRAL_API_KEY - This is your Mistral.ai Key. You only need this configured if you are using Mistral.ai.
 
+## Running extBrain
+
+After the application has been configured (.env is correct), you can start it with the script files and load the UI by going to:
+
+http://localhost:7861
+
+### Linux / MacOS 
+
+```
+./extbrain.sh
+```
+
+### Windows 
+
+```
+extbrain.bat
+```
+
 ## Setting up Vector Search Indexes
 
 Add the following index definition to the ```chunks``` collection.  Change the dimensions field to match the embedding model you are using.  InstructorVec outputs 768d, Mistral.ai uses 1024d and OpenAI uses 1536d.
