@@ -6,16 +6,12 @@ from flask_bootstrap import Bootstrap
 
 # Flask forms integrations which save insane amounts of time
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, PasswordField, SelectField, TextAreaField, IntegerField, FloatField, DateTimeField
+from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired
 
 # Basic python stuff
 import os
-import json
-import functools
 import requests
-import time
-import datetime
 
 # Some nice formatting for code
 import misaka
