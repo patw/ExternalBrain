@@ -99,9 +99,6 @@ if service_type == "openai":
 # If this is the first time we've run extBrain, we will test to see if the collections exist
 # and if they do not, we create them and the lexical and vector search indexes
 try:
-    # Check if collection exists
-    db.facts.count()
-except Exception as e:
     # Collection does not exist, create it
     db.create_collection('facts')
     db.create_collection('chunks')
@@ -157,6 +154,9 @@ except Exception as e:
         }
     ]}
     db.command(command)
+except:
+    # We've already configured the collection/search indexes before just keep going
+    pass
 
 # Make it pretty because I can't :(
 Bootstrap(app)

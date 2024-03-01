@@ -30,6 +30,20 @@ Run the following in the ExternalBrain directory:
 pip install -r requirements.txt
 ```
 
+## Docker Installation
+
+```
+git pull https://github.com/patw/ExternalBrain.git
+cd ExternalBrain
+```
+
+* Follow the instructions below on configuring the .env, model and embedder configs
+
+```
+docker build -t extbrain .
+docker run -d -p 7861:5000 extbrain
+```
+
 ## Configuration
 
 Copy the sample.env file to .env and edit this file.  This contains all the important configuration variables for the application to run.
