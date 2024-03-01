@@ -10,13 +10,21 @@ External Brain is a tool for asserting facts or writing down your thoughts, stor
 
 ## Compatibility
 
-External Brain was designed around using llama.cpp in server mode, however it can now be run with OpenAI or Mistral.ai keys! Check out the sample.env file for configuration options.
+External Brain's fact and chunk storage runs on MongDB Atlas, you can test it on a free tier (m0) account here:  https://www.mongodb.com/cloud/atlas/register
+
+External Brain was designed around using llama.cpp in server mode for the LLM, however it can now be run with OpenAI or Mistral.ai keys! Check out the sample.env file for configuration options.
 
 ![ExternalBrain UI Screenshot](images/question.png)
 ![ExternalBrain Facts](images/facts.png)
 ![ExternalBrain Search](images/search.png)
 
 ## Basic Installation
+
+Create a dedicated cluster on MongDB Atlas (7.x or higher), Under Database Access add a database user in Password mode, with the built in role of "read/write any database".  Click on Network Access and add your personal IP or 0.0.0.0 if you're comfortable with any IP connecting to this cluster.
+
+If you don't plan on running in local mode (see instructions below), obtain an API key from OpenAI (https://platform.openai.com/signup) or MistralAI (https://console.mistral.ai/).
+
+Run the following in the ExternalBrain directory:
 
 ```
 pip install -r requirements.txt
@@ -52,52 +60,6 @@ http://localhost:7861
 
 ```
 extbrain.bat
-```
-
-## Setting up Vector Search Indexes
-
-Add the following index definition to the ```chunks``` collection.  Change the dimensions field to match the embedding model you are using.  InstructorVec outputs 768d, Mistral.ai uses 1024d and OpenAI uses 1536d.
-
-**NOTE**: These collections must already be created first, so add a few facts in the UI and generate the chunks to ensure these collections exist.
-
-```
-{
-  "analyzer": "lucene.english",
-  "mappings": {
-    "dynamic": false,
-    "fields": {
-      "fact_chunk": {
-        "type": "string"
-      },
-      "chunk_embedding": [
-        {
-          "type": "knnVector",
-          "dimensions": 768 | 1024 | 1536,
-          "similarity": "cosine"
-        }      
-      ]    
-    } 
-  }
-}
-```
-
-Add the following index definition to the ```facts``` collection
-
-```
-{
-  "mappings": {
-    "dynamic": false,
-    "fields": {
-      "context": {
-        "type": "string"
-      },
-      "fact": {
-        "type": "string"
-      }
-    }
-  },
-  "analyzer": "lucene.english"
-}
 ```
 
 # Local Mode Configuration - Ignore if you use OpenAI or Mistral.ai

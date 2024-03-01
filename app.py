@@ -88,6 +88,76 @@ if service_type == "local":
 client = pymongo.MongoClient(os.environ["MONGO_CON"])
 db = client[os.environ["MONGO_DB"]]
 
+# Set the dimensions for the embedding models based on what service we've configured
+if service_type == "local":
+    vector_dimensions = 768  # Instructor large 768d
+if service_type == "mistral":
+    vector_dimensions = 1024 # mistral-embed 1024d
+if service_type == "openai":
+    vector_dimensions = 1536  # text-embedding-3-small 1536d
+
+# If this is the first time we've run extBrain, we will test to see if the collections exist
+# and if they do not, we create them and the lexical and vector search indexes
+try:
+    # Check if collection exists
+    db.facts.count()
+except Exception as e:
+    # Collection does not exist, create it
+    db.create_collection('facts')
+    db.create_collection('chunks')
+
+    # Create the text search index on facts collection
+    command = {
+    "createSearchIndexes": "facts",
+    "indexes": [
+        {
+            "name": 'default',
+            "definition": {
+                "mappings": {
+                    "dynamic": False,
+                    "fields": {
+                    "context": {
+                        "type": "string"
+                    },
+                    "fact": {
+                        "type": "string"
+                    }
+                    }
+                },
+                "analyzer": "lucene.english"
+            },
+        }
+    ]}
+    db.command(command)
+
+    # Create the vector search and text index on chunks collection
+    command = {
+    "createSearchIndexes": "chunks",
+    "indexes": [
+        {
+            "name": 'default',
+            "definition": {
+                "analyzer": "lucene.english",
+                "mappings": {
+                    "dynamic": False,
+                    "fields": {
+                        "fact_chunk": {
+                            "type": "string"
+                        },
+                        "chunk_embedding": [
+                            {
+                                "type": "knnVector",
+                                "dimensions": vector_dimensions,
+                                "similarity": "cosine"
+                            }
+                        ]    
+                    } 
+                }
+            },
+        }
+    ]}
+    db.command(command)
+
 # Make it pretty because I can't :(
 Bootstrap(app)
 
