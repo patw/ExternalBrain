@@ -363,7 +363,7 @@ def search_chunks(prompt, candidates, limit, score_cut):
 # Get all facts
 def get_facts(skip,limit):
     col = db["facts"]
-    fact_records = col.find().skip(skip).limit(limit)
+    fact_records = col.find().skip(skip).limit(limit).sort([("date", -1)])
     return fact_records
 
 # Get chunks based on semantic search (FIX THIS!!)
