@@ -69,7 +69,7 @@ DEFAULT_FACTS_PER_PAGE = 25
 
 ## Controls the fact synthesis 
 FACT_SYSTEM_MESSAGE = "You are sumbot, you take articles, blog posts and social media posts and you summarize the content from these into facts.  Each fact should be a single line and you think very carefully about what facts are important to the source material.  You capture enough facts in each article that it could be reproduced later using just the facts you provide.  You are expert level at this task and never miss a fact."
-FACT_PROMPT = "Summarize the following {context} into bullet point facts: {paste_data}"
+FACT_PROMPT = "Summaraize all the facts in this {context} into bullet points, one per line: {paste_data}"
 FACT_TEMPERATURE = 0.1
 
 # Load up the local model and embedder config if using the "local" service
