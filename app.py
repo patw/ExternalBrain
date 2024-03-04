@@ -50,10 +50,12 @@ service_type = os.environ["SERVICE"]
 if "MISTRAL_API_KEY" in os.environ:    
     mistral_client = MistralClient(api_key=os.environ["MISTRAL_API_KEY"])
     model_name = os.environ["MODEL_NAME"]
+    DEFAULT_SCORE_CUT = 0.9
 
 if "OPENAI_API_KEY" in os.environ:
     oai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     model_name = os.environ["MODEL_NAME"]
+    DEFAULT_SCORE_CUT = 0.9
 
 # User Auth
 users_string = os.environ["USERS"]
@@ -62,7 +64,6 @@ users = json.loads(users_string)
 # Some handy defaults that control the app
 DEFAULT_SYSTEM_MESSAGE = "You are a friendly chatbot. You help the user answer questions, solve problems and make plans.  You think deeply about the question and provide a detailed, accurate response."
 DEFAULT_TEMPERATURE = 0.7
-DEFAULT_SCORE_CUT = 0.92
 DEFAULT_LIMIT = 3
 DEFAULT_CANDIDATES = 100
 DEFAULT_FACTS_PER_PAGE = 25
@@ -83,6 +84,8 @@ if service_type == "local":
     # Load the embedder config
     with open("embedder.json", 'r',  encoding='utf-8') as file:
         local_embedder = json.load(file)
+
+    DEFAULT_SCORE_CUT = 0.92
 
 # Connect to mongo using environment variables
 client = pymongo.MongoClient(os.environ["MONGO_CON"])
@@ -495,10 +498,10 @@ def index():
         q = form_result["question"]
 
         if form_result["rag"] == "augmented":
-            llm_result = chat(q, DEFAULT_SYSTEM_MESSAGE, True)
+            llm_result = chat(q, DEFAULT_SYSTEM_MESSAGE, True, float(form_result["temperature"]), int(form_result["candidates"]), int(form_result["limit"]), float(form_result["score_cut"]))
         else:
-            llm_result = chat(q, DEFAULT_SYSTEM_MESSAGE, False)
-
+            llm_result = chat(q, DEFAULT_SYSTEM_MESSAGE, False, float(form_result["temperature"]), int(form_result["candidates"]), int(form_result["limit"]), float(form_result["score_cut"]))
+                                    
         # Format with Misaka
         formatted_result = misaka.html(llm_result["completion"])
         return render_template('index.html', llm_result=formatted_result, form=form)
