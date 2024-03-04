@@ -55,7 +55,7 @@ if "MISTRAL_API_KEY" in os.environ:
 if "OPENAI_API_KEY" in os.environ:
     oai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     model_name = os.environ["MODEL_NAME"]
-    DEFAULT_SCORE_CUT = 0.9
+    DEFAULT_SCORE_CUT = 0.7
 
 # User Auth
 users_string = os.environ["USERS"]
