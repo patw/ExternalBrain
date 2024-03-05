@@ -24,8 +24,9 @@ from bson import ObjectId
 # Some nice formatting for code
 import misaka
 
-# Import OpenAI and Mistral libraries
+# Import OpenAI, Azure and Mistral libraries
 from openai import OpenAI
+from openai import AzureOpenAI
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 
@@ -55,7 +56,14 @@ if "MISTRAL_API_KEY" in os.environ:
 if "OPENAI_API_KEY" in os.environ:
     oai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     model_name = os.environ["MODEL_NAME"]
+    embed_model_name = "text-embedding-3-small"
     DEFAULT_SCORE_CUT = 0.7
+
+if "AZURE_API_KEY" in os.environ:
+    oai_client = AzureOpenAI(api_key=os.environ["AZURE_API_KEY"], api_version="2023-12-01-preview", azure_endpoint=os.environ["AZURE_ENDPOINT"])
+    model_name = os.environ["MODEL_NAME"]
+    embed_model_name = os.environ["AZURE_EMBED_MODEL"]
+    DEFAULT_SCORE_CUT = 0.86
 
 # User Auth
 users_string = os.environ["USERS"]
@@ -96,8 +104,8 @@ if service_type == "local":
     vector_dimensions = 768  # Instructor large 768d
 if service_type == "mistral":
     vector_dimensions = 1024 # mistral-embed 1024d
-if service_type == "openai":
-    vector_dimensions = 1536  # text-embedding-3-small 1536d
+if service_type == "openai" or service_type == "azure":
+    vector_dimensions = 1536  # text-embedding-3-small or text-ada-002 1536d
 
 # If this is the first time we've run extBrain, we will test to see if the collections exist
 # and if they do not, we create them and the lexical and vector search indexes
@@ -225,7 +233,7 @@ def embed_local(text):
 # Call OpenAI's new embedder (1536d)
 def embed_oai(text):
     text = text.replace("\n", " ")
-    return oai_client.embeddings.create(input = [text], model="text-embedding-3-small").data[0].embedding
+    return oai_client.embeddings.create(input = [text], model=embed_model_name).data[0].embedding
 
 # Call mistral's embedder (1024d)
 def embed_mistral(text):
@@ -236,7 +244,7 @@ def embed_mistral(text):
 def embed(text):
     if service_type == "local":
         return embed_local(text)
-    if service_type == "openai":
+    if service_type == "openai" or service_type == "azure":
         return embed_oai(text)
     if service_type == "mistral":
         return embed_mistral(text)
@@ -292,7 +300,7 @@ def llm_local(user_prompt, system_message, temperature):
 def llm(user_prompt, system_message, temperature=DEFAULT_TEMPERATURE):
     if service_type == "local":
         return llm_local(user_prompt, system_message, temperature)
-    if service_type == "openai":
+    if service_type == "openai" or service_type == "azure":
         return llm_oai(user_prompt, system_message, temperature)
     if service_type == "mistral":
         return llm_mistral(user_prompt, system_message, temperature)
