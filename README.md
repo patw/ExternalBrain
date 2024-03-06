@@ -14,6 +14,8 @@ External Brain's fact and chunk storage runs on MongDB Atlas, you can test it on
 
 External Brain was designed around using llama.cpp in server mode for the LLM, however it can now be run with OpenAI or Mistral.ai keys! Check out the sample.env file for configuration options.
 
+[extBrain - Hackathon Video](https://youtu.be/JJk5hY6gI1w)
+
 ![ExternalBrain UI Screenshot](images/question.png)
 ![ExternalBrain Facts](images/facts.png)
 ![ExternalBrain Search](images/search.png)
