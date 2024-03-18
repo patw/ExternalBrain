@@ -385,8 +385,7 @@ def get_facts(skip,limit):
     fact_records = col.find().skip(skip).limit(limit).sort([("date", -1)])
     return fact_records
 
-# Get chunks based on semantic search (FIX THIS!!)
-# Just returns all chunks right now...
+# Searches facts using text search
 def search_facts(query):
     
     # Build the Atlas vector search aggregation
