@@ -320,6 +320,7 @@ def chat(prompt, system_message, augmented=True, temperature=DEFAULT_TEMPERATURE
         if chunk_string != "":
             llm_prompt = F"Facts:\n{chunk_string}\nAnswer this question using only the relevant facts above: {prompt}"
         else:
+            store_dontknow(prompt)
             return {"chunks": [], "completion": "I couldn't find any stored facts to answer that question. Try another question."}
     # If we're not, just query the model directly, without augmentation
     else:
@@ -334,6 +335,13 @@ def store_facts(facts, user, context):
     dt = datetime.datetime.now()
     for fact in facts:
         col.insert_one({"user": user, "date": dt, "context": context, "fact": fact })
+
+# When we don't know the answer, log the question to the "dontknow" collection
+# Brain admins can review this later to see what new knowledge needs to be added
+def store_dontknow(prompt):
+    col = db["dontknow"]
+    dt = datetime.datetime.now()
+    col.insert_one({"date": dt, "prompt": prompt })
 
 # Get chunks based on semantic search (FIX THIS!!)
 # Just returns all chunks right now...
