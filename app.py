@@ -63,7 +63,7 @@ if "AZURE_API_KEY" in os.environ:
     oai_client = AzureOpenAI(api_key=os.environ["AZURE_API_KEY"], api_version="2023-12-01-preview", azure_endpoint=os.environ["AZURE_ENDPOINT"])
     model_name = os.environ["MODEL_NAME"]
     embed_model_name = os.environ["AZURE_EMBED_MODEL"]
-    DEFAULT_SCORE_CUT = 0.86
+    DEFAULT_SCORE_CUT = 0.85
 
 # User Auth
 users_string = os.environ["USERS"]
@@ -93,7 +93,7 @@ if service_type == "local":
     with open("embedder.json", 'r',  encoding='utf-8') as file:
         local_embedder = json.load(file)
 
-    DEFAULT_SCORE_CUT = 0.92
+    DEFAULT_SCORE_CUT = 0.81
 
 # Connect to mongo using environment variables
 client = pymongo.MongoClient(os.environ["MONGO_CON"])
@@ -101,7 +101,7 @@ db = client[os.environ["MONGO_DB"]]
 
 # Set the dimensions for the embedding models based on what service we've configured
 if service_type == "local":
-    vector_dimensions = 768  # Instructor large 768d
+    vector_dimensions = 1024  # BreadVec 1024d
 if service_type == "mistral":
     vector_dimensions = 1024 # mistral-embed 1024d
 if service_type == "openai" or service_type == "azure":

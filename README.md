@@ -55,7 +55,7 @@ Copy the sample.env file to .env and edit this file.  This contains all the impo
 * SECRET_KEY - This is the session key for Flask, it can be anything you want
 * USERS - This is a json doc of user/password keys, set this to something you remember so you can log into system
 * API_KEY - This is the key that the discord_bot, slack_Bot and web_bot need to connect to extBrain, set it to something strong and complex and use the same key in those tools
-* SERVICE - This can be "local" for llama.cpp in server mode + InstructorVec,  "mistral" for Mistral.ai or "openai" for OpenAI
+* SERVICE - This can be "local" for llama.cpp in server mode + BreadVec,  "mistral" for Mistral.ai or "openai" for OpenAI
 * MODEL_NAME - This is the model name to use with each service.  Local doesn't use this but Mistral and OpenAI need this configured.
 * OPENAI_API_KEY - This is your OpenAI Key. You only need this configured if you are using OpenAI. 
 * MISTRAL_API_KEY - This is your Mistral.ai Key. You only need this configured if you are using Mistral.ai.
@@ -86,11 +86,11 @@ If you want to run extBrain entirely locally, without using any cloud provider y
 
 Rename the model.json.sample to model.json.  This file is used to set the prompt format and ban tokens, the default is ChatML format so it should work with most recent models.  Set the llama_endpoint to point to your llama.cpp running in server mode.
 
-Rename embedder.json.sample to embedder.json and point to the endpoint of your InstructVec service.
+Rename embedder.json.sample to embedder.json and point to the endpoint of your BreadVec service.
 
 ## Setting up the Text Embedder
 
-Install and configure https://github.com/patw/InstructorVec
+Install and configure https://github.com/patw/BreadVec
 
 Detailed instructions are in that repo.
 

@@ -1,3 +1,3 @@
 {
-    "embedding_endpoint": "http://localhost:3001/vectorize"
+    "embedding_endpoint": "http://localhost:3006/vectorize"
 }
