@@ -214,7 +214,7 @@ class SaveFactsForm(FlaskForm):
 
 # A form for configuring the chunk regen process
 class ChunksForm(FlaskForm):
-    method = SelectField('Chunking Method', choices=[("limit", "Fixed Fact Limit"), ("context", "Context Grouped (TODO)"), ("similar", "Vector Similarity (TODO)")]) 
+    method = SelectField('Chunking Method', choices=[("limit", "Fixed Fact Limit"), ("context", "Context Grouped"), ("similar", "Vector Similarity (TODO)")]) 
     fact_limit = IntegerField('Number of facts per chunk', validators=[DataRequired()])
     submit = SubmitField('Generate Chunks')
 
@@ -440,6 +440,10 @@ def clean_facts(facts):
 
     return(facts_clean)
 
+# Save a chunk to the chunks collection and it's embedding
+def save_chunk(col, chunk):
+    col.insert_one({"fact_chunk": chunk, "chunk_embedding": embed(chunk)})
+
 # Generate chunk collection using facts, fixed fact method
 def chunk_by_limit(chunk_limit):
     facts_col = db["facts"]
@@ -465,7 +469,7 @@ def chunk_by_limit(chunk_limit):
         fact_count += 1
         # We have the maximum number of facts now, lets send it to chunks collection
         if fact_count == chunk_limit:
-            chunks_col.insert_one({"fact_chunk": chunk_string, "chunk_embedding": embed(chunk_string)})
+            save_chunk(chunks_col, chunk_string)
             # reset it all!
             fact_count = 0 
             chunk_string = ""
@@ -473,12 +477,54 @@ def chunk_by_limit(chunk_limit):
             fact_context = ""
     # Clean up final facts
     if chunk_string != "":
-        chunks_col.insert_one({"fact_chunk": chunk_string, "chunk_embedding": embed(chunk_string)})
+        save_chunk(chunks_col, chunk_string)
 
 # Generate chunk collection using facts, fixed fact limit but chunks can only contain a single context
 def chunk_by_context(chunk_limit):
-    # TODO - fix this
-    return chunk_by_limit(chunk_by_limit)
+    # Use the facts collection
+    facts_col = db["facts"]
+
+    # Drop old chunks to make new chunks!
+    chunks_col = db["chunks"]
+    chunks_col.delete_many({})  # Goodbye chunks!
+
+    # Build up a dict with the key being context, user and date
+    # Store all the facts under each one.
+    result_dict = {}
+    for doc in facts_col.find():
+        context = doc["context"]
+        user = doc["user"]
+        date = doc["date"].strftime('%Y-%m-%d')
+        fact = doc["fact"]
+        
+        # Create a unique key using the three fields
+        key = (context, user, date)
+        
+        # Add the facts to the key
+        if key not in result_dict:
+            result_dict[key] = []
+        result_dict[key].append(fact)
+
+    for key, value in result_dict.items():
+        context, user, date = key
+        facts = value
+
+        # Iterate through the facts and group them
+        fact_header = f"{context} from {user} on {date}"
+        fact_count = 0
+        fact_string = ""
+        for fact in facts:
+            fact_count += 1
+            fact_string += f" - {fact}\n"
+            if fact_count == chunk_limit:
+                chunk_string = f"{fact_header}\n{fact_string}"
+                save_chunk(chunks_col, chunk_string)
+                fact_string = ""
+                fact_count = 0
+        # Catch the last one
+        if fact_count > 0:
+            chunk_string = f"{fact_header}\n{fact_string}"
+            save_chunk(chunks_col, chunk_string)  
 
 # Generate chunk collection using facts, fixed fact limit but chunks will always contain similar facts
 def chunk_by_similarity(chunk_limit):
