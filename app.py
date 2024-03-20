@@ -214,7 +214,7 @@ class SaveFactsForm(FlaskForm):
 
 # A form for configuring the chunk regen process
 class ChunksForm(FlaskForm):
-    method = SelectField('Chunking Method', choices=[("limit", "Fixed Fact Limit"), ("context", "Context Grouped"), ("similar", "Vector Similarity (TODO)")]) 
+    method = SelectField('Chunking Method', choices=[("context", "Context Grouped"), ("limit", "Fixed Fact Limit"), ("similar", "Vector Similarity (TODO)")]) 
     fact_limit = IntegerField('Number of facts per chunk', validators=[DataRequired()])
     submit = SubmitField('Generate Chunks')
 
