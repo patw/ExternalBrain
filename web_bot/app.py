@@ -25,6 +25,7 @@ app = Flask(__name__)
 
 # Session key
 app.config['SECRET_KEY'] = os.environ["SECRET_KEY"]
+app.config['SESSION_COOKIE_NAME'] = 'extbrain_fe'
 
 # API Key
 API_KEY = os.environ["API_KEY"]
