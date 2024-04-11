@@ -215,8 +215,8 @@ class SaveFactsForm(FlaskForm):
 
 # A form for configuring the chunk regen process
 class ChunksForm(FlaskForm):
-    method = SelectField('Chunking Method', choices=[("context", "Context Grouped"), ("limit", "Fixed Fact Limit"), ("similar", "Vector Similarity (TODO)")]) 
     fact_limit = IntegerField('Number of facts per chunk', validators=[DataRequired()])
+    which_facts = SelectField('Which facts', choices=[("new", "New/Changed Facts"), ("all", "All Facts")])
     submit = SubmitField('Generate Chunks')
 
 # Amazing, I hate writing this stuff
@@ -442,57 +442,27 @@ def clean_facts(facts):
     return(facts_clean)
 
 # Save a chunk to the chunks collection and it's embedding
-def save_chunk(col, chunk):
-    col.insert_one({"fact_chunk": chunk, "chunk_embedding": embed(chunk)})
-
-# Generate chunk collection using facts, fixed fact method
-def chunk_by_limit(chunk_limit):
-    facts_col = db["facts"]
-    fact_records = facts_col.find()
-
-    # Drop old chunks to make new chunks!
-    chunks_col = db["chunks"]
-    chunks_col.delete_many({})  # Goodbye chunks!
-
-    # We detect the changes in user/context so we indicate who said what about what and when
-    fact_user = ""
-    fact_context = ""
-    chunk_string = ""
-    fact_count = 0
-    for fact in fact_records:
-        if fact["user"] != fact_user or fact["context"] != fact_context:
-            fact_user = fact["user"]
-            fact_context = fact["context"]
-            fact_date = fact["date"].strftime('%Y-%m-%d')
-            chunk_string += F"{fact_user} on {fact_date} said this about {fact_context}:\n"
-        fact_data = fact["fact"]
-        chunk_string += F"- {fact_data}\n"
-        fact_count += 1
-        # We have the maximum number of facts now, lets send it to chunks collection
-        if fact_count == chunk_limit:
-            save_chunk(chunks_col, chunk_string)
-            # reset it all!
-            fact_count = 0 
-            chunk_string = ""
-            fact_user = ""
-            fact_context = ""
-    # Clean up final facts
-    if chunk_string != "":
-        save_chunk(chunks_col, chunk_string)
+def save_chunk(col, chunk, context):
+    col.insert_one({"fact_chunk": chunk, "chunk_embedding": embed(chunk), "context": context})
 
 # Generate chunk collection using facts, fixed fact limit but chunks can only contain a single context
-def chunk_by_context(chunk_limit):
+def chunk_by_context(chunk_limit, force=False):
     # Use the facts collection
     facts_col = db["facts"]
 
-    # Drop old chunks to make new chunks!
+    # Connect to chunks
     chunks_col = db["chunks"]
-    chunks_col.delete_many({})  # Goodbye chunks!
+    
+    # Regenerate all chunks or just the changed facts
+    if force:
+        facts = facts_col.find()
+    else:
+        facts = facts_col.find({"chunked": {'$ne': True}})
 
     # Build up a dict with the key being context, user and date
-    # Store all the facts under each one.
+    # Store all the facts under each one.   
     result_dict = {}
-    for doc in facts_col.find():
+    for doc in facts:
         context = doc["context"]
         user = doc["user"]
         date = doc["date"].strftime('%Y-%m-%d')
@@ -519,19 +489,19 @@ def chunk_by_context(chunk_limit):
             fact_string += f" - {fact}\n"
             if fact_count == chunk_limit:
                 chunk_string = f"{fact_header}\n{fact_string}"
-                save_chunk(chunks_col, chunk_string)
+                save_chunk(chunks_col, chunk_string, context)
                 fact_string = ""
                 fact_count = 0
         # Catch the last one
         if fact_count > 0:
             chunk_string = f"{fact_header}\n{fact_string}"
-            save_chunk(chunks_col, chunk_string)  
+            save_chunk(chunks_col, chunk_string, context)
 
-# Generate chunk collection using facts, fixed fact limit but chunks will always contain similar facts
-def chunk_by_similarity(chunk_limit):
-    # TODO - fix this
-    return chunk_by_limit(chunk_by_limit)
-
+    # Update the facts collection to indicate that all outstanding facts have been chunked
+    # This allows us to selectively chunk new and updated data
+    filter_chunked = { "$or": [ { "chunked": False }, { "chunked": { "$exists": False } } ] }
+    update_chunked = { "$set": { "chunked": True } }
+    facts_col.update_many(filter_chunked, update_chunked)
 
 # Define a decorator to check if the user is authenticated
 # No idea how this works...  Magic.
@@ -660,13 +630,14 @@ def regenchunks():
         # Get the form variables
         form_result = request.form.to_dict(flat=True)
         fact_limit = int(form_result["fact_limit"])
-        method = form_result["method"]
-        if method == "limit":
-            chunk_by_limit(fact_limit)
-        elif method == "context":
-            chunk_by_context(fact_limit)  # FIX THIS!!
-        elif method == "similar":
-            chunk_by_similarity(fact_limit)  # FIX THISS!!
+        which_facts = form_result["which_facts"]
+        
+        # Regenerate just the changed facts or all of them?
+        if which_facts == "all":
+            chunk_by_context(fact_limit, True)
+        else:
+            chunk_by_context(fact_limit)
+
         return redirect(url_for('index'))
 
     # Spit out the template
@@ -697,6 +668,7 @@ def fact_edit(id):
     
     # Pull up that fact
     facts_col = db["facts"]
+    chunks_col = db["chunks"]
     fact_record = facts_col.find_one({'_id': ObjectId(id)})
 
     # Fact edit form
@@ -706,6 +678,10 @@ def fact_edit(id):
         form_result = request.form.to_dict(flat=True)
         form_result.pop('csrf_token')
         form_result.pop('save')
+        # Indicate we need to re-chunk all the facts in this category because we edited them
+        facts_col.update_many({'context': form_result["context"]}, {'$set': {'chunked': False}})
+        # Remove the chunks with this context, they're no longer balanced
+        chunks_col.delete_many({'context': form_result["context"]})
         facts_col.update_one({'_id': ObjectId(id)}, {'$set': form_result})
         return redirect(url_for('index'))
     else:        
@@ -719,6 +695,14 @@ def fact_edit(id):
 @login_required
 def fact_delete(id):
     facts_col = db["facts"]
+    chunks_col = db["chunks"]
+    
+    # Find the fact record, and set all facts with the same context to not chunked
+    # and delete the existing chunks in the same category
+    fact_record = facts_col.find_one({'_id': ObjectId(id)})
+    facts_col.update_many({'context': fact_record["context"]}, {'$set': {'chunked': False}})
+    chunks_col.delete_many({'context': fact_record["context"]})
+
     facts_col.delete_one({'_id': ObjectId(id)})
     return redirect(url_for('facts'))
 
