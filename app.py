@@ -76,6 +76,7 @@ DEFAULT_TEMPERATURE = 0.7
 DEFAULT_LIMIT = 3
 DEFAULT_CANDIDATES = 100
 DEFAULT_FACTS_PER_PAGE = 25
+DEFAULT_TEXT_SCORE_CUT = 3.0 # This is a hack, reranking is better!
 
 ## Controls the fact synthesis 
 FACT_SYSTEM_MESSAGE = "You are sumbot, you take articles, blog posts and social media posts and you summarize the content from these into facts.  Each fact should be a single line and you think very carefully about what facts are important to the source material.  You capture enough facts in each article that it could be reproduced later using just the facts you provide.  You are expert level at this task and never miss a fact."
@@ -228,7 +229,6 @@ class LoginForm(FlaskForm):
 
 # Function to call the local text embedder (768d)
 def embed_local(text):
-    print(text)
     response = requests.get(local_embedder["embedding_endpoint"], params={"text":text, "instruction": "Represent this text for retrieval:" }, headers={"accept": "application/json"})
     vector_embedding = response.json()
     return vector_embedding
@@ -310,19 +310,19 @@ def llm(user_prompt, system_message, temperature=DEFAULT_TEMPERATURE):
 
 
 # Chat with model with or without augmentation
-def chat(prompt, system_message, augmented=True, temperature=DEFAULT_TEMPERATURE, candidates=DEFAULT_CANDIDATES, limit=DEFAULT_LIMIT, score_cut=DEFAULT_SCORE_CUT, hybrid=True):
+def chat(prompt, system_message, augmented=True, temperature=DEFAULT_TEMPERATURE, candidates=DEFAULT_CANDIDATES, limit=DEFAULT_LIMIT, score_cut=DEFAULT_SCORE_CUT, hybrid=True, text_score_cut=DEFAULT_TEXT_SCORE_CUT):
     # If we're doing RAG, vector search, assemble chunks and query with them
     fact_chunks = []
     chunk_string = ""
     if augmented:
         chunks = search_chunks(prompt, candidates, limit, score_cut)
-        lexical_chunks = search_chunks_text(prompt, limit)
         # Vector search chunks
         for chunk in chunks:
             fact_chunks.append(chunk["fact_chunk"])
             chunk_string += chunk["fact_chunk"]
         # Text search chunks if hybrid is enabled
         if hybrid:
+            lexical_chunks = search_chunks_text(prompt, limit, text_score_cut)
             for chunk in lexical_chunks:
                 fact_chunks.append(chunk["fact_chunk"])
                 chunk_string += chunk["fact_chunk"]
@@ -389,7 +389,7 @@ def search_chunks(prompt, candidates, limit, score_cut):
     return chunk_records
 
 # Get chunks based on text search 
-def search_chunks_text(prompt, limit):
+def search_chunks_text(prompt, limit, text_score_cut):
     # Build the Atlas vector search aggregation
     text_search_agg = [
         {   
@@ -405,7 +405,13 @@ def search_chunks_text(prompt, limit):
         },
         {
             "$project": {
-                "fact_chunk": 1
+                "fact_chunk": 1,
+                "score": {"$meta": "searchScore"}
+            }
+        },
+        {
+            "$match": {
+                "score": { "$gte": text_score_cut }
             }
         }
     ]
